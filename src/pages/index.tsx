@@ -1,54 +1,55 @@
-import EmailField from "../components/EmailField";
-import LoginComplete from "../components/LoginComplete";
-import PasswordField from "../components/PasswordField";
-import useLoginFunnel from "../hooks/useLoginFunnel";
+import { Card, CardContent } from "@mui/material";
+import { isNil } from "es-toolkit";
+import Executor from "../components/Executor";
+import LoginComplete from "../components/SignUpComplete";
+import UserAccountForm from "../components/UserAccountForm";
+import UserConsentForm from "../components/UserConsentForm";
+import useSignUpFunnel from "../hooks/useSignUpFunnel";
 
 export default function IndexPage() {
-    const funnel = useLoginFunnel();
+    const funnel = useSignUpFunnel();
 
     return (
-        <funnel.Render
-            emailStep={({ history }) => <EmailField onNext={(email) => history.push("passwordStep", { email })} />}
-            passwordStep={funnel.Render.with({
-                events: {
-                    passwordSuccess: (password: string, { history }) => {
-                        history.push("completeStep", { password });
-                    },
-                    emailError: (_: Error, { history }) => {
-                        history.push("emailStep", {});
-                    },
-                },
-                render({ context, dispatch }) {
-                    return (
-                        <PasswordField
-                            email={context.email}
-                            onNext={(password) => dispatch("passwordSuccess", password)}
-                            onError={(error) => dispatch("emailError", error)}
+        <Card sx={{ width: 350, maxWidth: 350 }}>
+            <CardContent>
+                <funnel.Render
+                    accountStep={({ history }) => (
+                        <UserAccountForm
+                            onNext={(email, password) => history.push("agreementStep", { email, password })}
                         />
-                    );
-                },
-            })}
-            completeStep={funnel.Render.overlay({
-                events: {
-                    emailError: (_: Error, { history }) => {
-                        history.push("emailStep", {});
-                    },
-                    passwordError: (_: Error, { history, context }) => {
-                        history.push("passwordStep", { email: context.email });
-                    },
-                },
-                render({ context, dispatch, close }) {
-                    return (
-                        <LoginComplete
-                            email={context.email}
-                            password={context.password}
-                            onEmailError={(error) => dispatch("emailError", error)}
-                            onPasswordError={(error) => dispatch("passwordError", error)}
-                            onClose={close}
-                        />
-                    );
-                },
-            })}
-        />
+                    )}
+                    agreementStep={({ context, history }) => (
+                        <>
+                            <Executor
+                                isExecute={!context.email && !context.password}
+                                action={() => history.push("accountStep", {})}
+                            />
+                            <UserConsentForm
+                                isPersonalInfoAgreed={context.isPersonalInfoAgreed}
+                                isMarketingInfoConsent={context.isMarketingInfoConsent}
+                                onNext={(isPersonalInfoAgreed, isMarketingInfoConsent) => {
+                                    history.push("completeStep", { isPersonalInfoAgreed, isMarketingInfoConsent });
+                                }}
+                            />
+                        </>
+                    )}
+                    completeStep={({ context, history }) => (
+                        <>
+                            <Executor
+                                isExecute={!context.email && !context.password}
+                                action={() => history.push("accountStep", {})}
+                            />
+                            <Executor
+                                isExecute={isNil(context.isPersonalInfoAgreed) && isNil(context.isMarketingInfoConsent)}
+                                action={() => {
+                                    history.push("agreementStep", { email: context.email, password: context.password });
+                                }}
+                            />
+                            <LoginComplete email={context.email} onNext={() => {}} />
+                        </>
+                    )}
+                />
+            </CardContent>
+        </Card>
     );
 }
